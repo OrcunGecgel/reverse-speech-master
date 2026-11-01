@@ -1,0 +1,1041 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#090714">
+  <title>Reverse Speech Master | Çok Oyunculu</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: { extend: {
+        colors: {
+          brand: { 500: '#8b5cf6', 600: '#7c3aed', 700: '#6d28d9', neon: '#00e5ff', pink: '#ec4899' }
+        },
+        fontFamily: { sans: ['Outfit', 'sans-serif'] },
+        boxShadow: { glow: '0 0 28px rgba(139,92,246,.24)' }
+      }}
+    };
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    :root { color-scheme: dark; }
+    * { box-sizing: border-box; }
+    body {
+      font-family: 'Outfit', sans-serif;
+      background: radial-gradient(ellipse at 12% 0%, #21143d 0, #0b0818 42%, #070611 100%);
+      color: #f4f4f5; min-height: 100vh;
+    }
+    .glass { background: rgba(20,16,38,.82); border: 1px solid rgba(168,85,247,.17); backdrop-filter: blur(16px); }
+    .soft-border { border: 1px solid rgba(255,255,255,.085); }
+    .gradient-text { background: linear-gradient(90deg,#a78bfa,#ec4899,#00e5ff); -webkit-background-clip:text; background-clip:text; color:transparent; }
+    .primary-btn { background: linear-gradient(110deg,#7c3aed,#a855f7 54%,#00bfd8); color:#090714; font-weight:800; transition:.18s ease; }
+    .primary-btn:hover { filter:brightness(1.12); transform:translateY(-1px); box-shadow:0 8px 28px rgba(139,92,246,.23); }
+    .primary-btn:disabled { opacity:.35; filter:grayscale(.4); cursor:not-allowed; transform:none; box-shadow:none; }
+    .secondary-btn { background:rgba(39,32,58,.8); border:1px solid rgba(167,139,250,.24); color:#ddd6fe; transition:.18s ease; }
+    .secondary-btn:hover { background:rgba(76,29,149,.45); border-color:rgba(167,139,250,.5); }
+    .field { width:100%; background:rgba(7,6,17,.8); border:1px solid #3f3653; border-radius:13px; padding:12px 14px; color:#fff; outline:none; transition:.2s; }
+    .field:focus { border-color:#a78bfa; box-shadow:0 0 0 3px rgba(139,92,246,.12); }
+    .field::placeholder { color:#777187; }
+    .panel-title { color:#c4b5fd; font-size:.72rem; font-weight:800; letter-spacing:.12em; text-transform:uppercase; }
+    .scroll-area { scrollbar-width:thin; scrollbar-color:#6341a3 transparent; }
+    .scroll-area::-webkit-scrollbar { width:6px; }
+    .scroll-area::-webkit-scrollbar-thumb { background:#6341a3; border-radius:8px; }
+    .pulse-dot { width:8px;height:8px;border-radius:99px;background:#22d3ee;box-shadow:0 0 12px #22d3ee;display:inline-block; }
+    .recording-ring { animation:ring 1.3s infinite; }
+    @keyframes ring { 0%{box-shadow:0 0 0 0 rgba(236,72,153,.55)} 70%{box-shadow:0 0 0 18px rgba(236,72,153,0)} 100%{box-shadow:0 0 0 0 rgba(236,72,153,0)} }
+    .hidden-screen { display:none !important; }
+    button:focus-visible { outline:2px solid #22d3ee; outline-offset:3px; }
+    #toast { transition: opacity .2s, transform .2s; }
+    .toast-hide { opacity:0; transform:translateY(8px); pointer-events:none; }
+    @media (max-width:640px) { .mobile-tight { padding:14px !important; } }
+  </style>
+</head>
+<body class="font-sans">
+  <header class="sticky top-0 z-40 border-b border-purple-900/40 bg-[#0b0818]/85 backdrop-blur-xl">
+    <div class="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between gap-3">
+      <a href="./" class="flex items-center gap-3 min-w-0">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-purple-700 via-fuchsia-500 to-cyan-400 flex items-center justify-center shadow-glow shrink-0">
+          <i class="fa-solid fa-rotate-left text-white text-lg"></i>
+        </div>
+        <div class="min-w-0">
+          <div class="font-black tracking-wider text-sm sm:text-base gradient-text">REVERSE SPEECH MASTER</div>
+          <div class="text-[10px] sm:text-xs text-zinc-500">Çok Oyunculu Ters Konuşma Oyunu</div>
+        </div>
+      </a>
+      <div id="connection-badge" class="hidden sm:flex items-center gap-2 text-[11px] text-zinc-400 bg-zinc-900/70 border border-zinc-800 rounded-full px-3 py-1.5">
+        <span class="pulse-dot"></span><span id="connection-label">Bağlanıyor</span>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-6xl mx-auto px-4 py-7 sm:py-10">
+    <!-- HOME / CREATE OR JOIN -->
+    <section id="screen-home" class="max-w-4xl mx-auto">
+      <div class="text-center mb-8 sm:mb-10">
+        <div class="inline-flex items-center gap-2 text-[10px] font-bold tracking-[.2em] uppercase text-cyan-300 bg-cyan-400/10 border border-cyan-300/20 px-3 py-1.5 rounded-full mb-4">
+          <i class="fa-solid fa-headphones"></i> Sesini tersine çevir, arkadaşlarını şaşırt
+        </div>
+        <h1 class="text-4xl sm:text-6xl font-black tracking-tight leading-tight">Duyduğunu <span class="gradient-text">tersinden</span><br class="hidden sm:block"> çözebilir misin?</h1>
+        <p class="text-zinc-400 text-sm sm:text-base mt-4 max-w-xl mx-auto">Odanı kur, arkadaşlarını davet et. Kelimeyi oku, sesin tersine dönsün; en hızlı tahmin eden puanları toplasın.</p>
+      </div>
+
+      <div id="config-warning" class="hidden glass border-amber-500/30 rounded-2xl p-4 mb-6 text-sm text-amber-200">
+        <div class="font-bold mb-1"><i class="fa-solid fa-triangle-exclamation mr-2"></i>Supabase bağlantısı henüz ayarlanmamış</div>
+        <p class="text-xs text-amber-100/75">index.html dosyasındaki SUPABASE_URL ve SUPABASE_ANON_KEY alanlarına kendi Supabase proje bilgilerini eklemelisin. Kurulum adımları README dosyasında.</p>
+      </div>
+
+      <div class="grid md:grid-cols-2 gap-5">
+        <div class="glass rounded-3xl p-6 sm:p-8 shadow-glow">
+          <div class="w-12 h-12 rounded-2xl bg-purple-500/15 border border-purple-400/20 flex items-center justify-center text-purple-300 text-xl mb-5"><i class="fa-solid fa-plus"></i></div>
+          <h2 class="text-xl font-extrabold">Yeni Oda Oluştur</h2>
+          <p class="text-xs text-zinc-500 mt-1 mb-6">Odayı sen kur, davet linkini arkadaşlarına gönder.</p>
+          <label for="create-name" class="block text-xs font-semibold text-zinc-300 mb-2">Oyuncu adın</label>
+          <input id="create-name" class="field mb-4" maxlength="20" placeholder="Örn. Ahmet" autocomplete="nickname">
+          <button id="btn-create-room" class="primary-btn w-full rounded-xl py-3.5 text-sm"><i class="fa-solid fa-wand-magic-sparkles mr-2"></i>Oda Oluştur</button>
+        </div>
+
+        <div class="glass rounded-3xl p-6 sm:p-8">
+          <div class="w-12 h-12 rounded-2xl bg-cyan-500/10 border border-cyan-300/20 flex items-center justify-center text-cyan-300 text-xl mb-5"><i class="fa-solid fa-door-open"></i></div>
+          <h2 class="text-xl font-extrabold">Bir Odaya Katıl</h2>
+          <p class="text-xs text-zinc-500 mt-1 mb-6">Arkadaşının gönderdiği linki aç veya oda kodunu gir.</p>
+          <label for="join-name" class="block text-xs font-semibold text-zinc-300 mb-2">Oyuncu adın</label>
+          <input id="join-name" class="field mb-3" maxlength="20" placeholder="Örn. Zeynep" autocomplete="nickname">
+          <label for="join-code" class="block text-xs font-semibold text-zinc-300 mb-2">Oda kodu</label>
+          <input id="join-code" class="field mb-4 uppercase tracking-[.25em]" maxlength="6" placeholder="A1B2C3" autocomplete="off">
+          <button id="btn-join-room" class="secondary-btn w-full rounded-xl py-3.5 text-sm font-bold"><i class="fa-solid fa-arrow-right-to-bracket mr-2"></i>Odaya Katıl</button>
+        </div>
+      </div>
+      <div class="mt-7 flex flex-wrap justify-center gap-x-6 gap-y-2 text-[11px] text-zinc-600">
+        <span><i class="fa-solid fa-users mr-1.5 text-purple-400"></i>2+ oyuncu</span>
+        <span><i class="fa-solid fa-microphone mr-1.5 text-purple-400"></i>Mikrofonla kayıt</span>
+        <span><i class="fa-solid fa-trophy mr-1.5 text-purple-400"></i>Canlı skor</span>
+        <span><i class="fa-solid fa-box-archive mr-1.5 text-purple-400"></i>Ses arşivi</span>
+      </div>
+    </section>
+
+    <!-- ROOM SCREEN -->
+    <section id="screen-room" class="hidden-screen">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
+        <div>
+          <div class="flex items-center gap-2 text-[10px] text-cyan-300 uppercase tracking-[.18em] font-bold"><span class="pulse-dot"></span> Canlı oyun odası</div>
+          <h1 class="text-2xl sm:text-3xl font-black mt-1">Parti Odası <span id="room-code-title" class="gradient-text tracking-widest"></span></h1>
+        </div>
+        <div class="flex gap-2">
+          <button id="btn-copy-link" class="secondary-btn rounded-xl px-3 py-2.5 text-xs font-bold"><i class="fa-solid fa-link mr-1.5"></i>Davet Linkini Kopyala</button>
+          <button id="btn-leave-room" class="secondary-btn rounded-xl px-3 py-2.5 text-xs"><i class="fa-solid fa-arrow-right-from-bracket mr-1.5"></i>Ana Sayfa</button>
+        </div>
+      </div>
+
+      <div class="grid lg:grid-cols-3 gap-5 items-start">
+        <div class="lg:col-span-2 space-y-5">
+          <!-- TURN / WORD -->
+          <div class="glass rounded-3xl p-5 sm:p-7 relative overflow-hidden">
+            <div class="absolute -right-16 -top-20 w-64 h-64 bg-purple-600/10 blur-3xl rounded-full pointer-events-none"></div>
+            <div class="relative flex flex-wrap justify-between items-center gap-2">
+              <span id="round-category" class="text-[10px] uppercase font-bold tracking-widest px-3 py-1.5 rounded-full bg-purple-500/15 border border-purple-400/25 text-purple-200">Bekleniyor</span>
+              <span id="round-number" class="text-[11px] text-zinc-500 font-semibold">Henüz tur yok</span>
+            </div>
+            <div class="relative text-center py-8 sm:py-10">
+              <div class="text-[10px] text-zinc-500 uppercase tracking-[.2em] font-bold mb-3">Şu anki okuyucu</div>
+              <div id="round-speaker" class="text-2xl sm:text-3xl font-black">Oyuncular bekleniyor</div>
+              <div id="round-message" class="text-sm text-zinc-400 mt-3 max-w-lg mx-auto">En az iki kişi katıldığında oyun başlayabilir.</div>
+              <div id="target-word-wrap" class="hidden mt-6 bg-black/30 border border-fuchsia-400/25 rounded-2xl px-5 py-5 max-w-md mx-auto">
+                <div class="text-[10px] text-fuchsia-300 uppercase tracking-[.18em] font-bold mb-2"><i class="fa-solid fa-eye-slash mr-1"></i>Sadece sen görebilirsin</div>
+                <div id="target-word" class="text-3xl sm:text-4xl font-black tracking-tight break-words"></div>
+                <div class="text-[11px] text-zinc-500 mt-2">Kelimeyi doğal şekilde oku. Kayıt durunca arkadaşların sesi tersten duyacak.</div>
+              </div>
+              <div id="round-action-area" class="mt-6 flex flex-wrap justify-center gap-2"></div>
+            </div>
+          </div>
+
+          <!-- RECORDING PANEL -->
+          <div id="recording-panel" class="glass rounded-3xl p-5 sm:p-6">
+            <div class="flex items-center justify-between mb-4">
+              <div class="panel-title"><i class="fa-solid fa-wave-square mr-2"></i>Ses stüdyosu</div>
+              <span id="recording-badge" class="text-[10px] text-zinc-500 bg-zinc-900/70 border border-zinc-800 rounded-full px-2.5 py-1">Kayıt bekleniyor</span>
+            </div>
+            <div class="h-24 bg-[#080713] border border-zinc-800 rounded-2xl overflow-hidden relative flex items-center justify-center">
+              <canvas id="waveform" class="w-full h-full"></canvas>
+              <span id="waveform-placeholder" class="absolute text-[11px] text-zinc-600">Mikrofon dalgası burada görünecek</span>
+            </div>
+            <div class="flex flex-col items-center py-5 gap-3">
+              <button id="btn-record" disabled class="w-[76px] h-[76px] rounded-full bg-gradient-to-tr from-purple-700 to-fuchsia-500 text-white text-2xl shadow-lg disabled:opacity-30 disabled:cursor-not-allowed transition active:scale-95"><i id="record-icon" class="fa-solid fa-microphone"></i></button>
+              <div id="recording-status" class="text-xs text-zinc-500 text-center">Sıra sana geldiğinde kayıt butonu aktif olacak.</div>
+            </div>
+            <div class="flex justify-center">
+              <button id="btn-play-current" disabled class="secondary-btn rounded-xl px-4 py-2.5 text-xs font-bold disabled:opacity-30"><i class="fa-solid fa-backward mr-2 text-cyan-300"></i>Tersten Dinle</button>
+            </div>
+          </div>
+
+          <!-- IMITATION RECORDINGS -->
+          <div id="imitation-panel" class="glass rounded-3xl p-5 sm:p-6">
+            <div class="flex items-center justify-between border-b border-zinc-800 pb-3 mb-4">
+              <div class="panel-title"><i class="fa-solid fa-microphone-lines mr-2"></i>Taklit kayıtları</div>
+              <span id="imitation-count" class="text-[10px] text-zinc-500">0 kayıt</span>
+            </div>
+            <p class="text-xs text-zinc-500 mb-3">Ters sesi dinle, duyduğun şekilde mikrofona söyle. Kaydın tekrar ters çevrilip odadaki herkese dinletilecek.</p>
+            <div id="imitation-list" class="space-y-2">
+              <div class="text-xs text-zinc-600 text-center py-4">Henüz taklit kaydı yok.</div>
+            </div>
+          </div>
+
+          <!-- GUESS CHAT -->
+          <div class="glass rounded-3xl p-5 sm:p-6">
+            <div class="flex items-center justify-between border-b border-zinc-800 pb-3 mb-4">
+              <div class="panel-title"><i class="fa-solid fa-comments mr-2"></i>Tahmin Alanı</div>
+              <span id="guess-count" class="text-[10px] text-zinc-600">0 tahmin</span>
+            </div>
+            <div id="guess-list" class="scroll-area min-h-24 max-h-64 overflow-y-auto space-y-2 mb-4">
+              <div class="text-xs text-zinc-600 text-center py-7">Ters ses yayınlandığında tahminler burada görünecek.</div>
+            </div>
+            <form id="guess-form" class="flex gap-2">
+              <input id="guess-input" class="field text-sm" maxlength="100" placeholder="Duyduğun kelimeyi yaz..." autocomplete="off" disabled>
+              <button id="btn-send-guess" class="primary-btn rounded-xl px-4 text-xs whitespace-nowrap" type="submit" disabled><i class="fa-solid fa-paper-plane mr-1.5"></i>Gönder</button>
+            </form>
+            <div id="guess-hint" class="text-[10px] text-zinc-600 mt-2">Tahminler bütün oyunculara anlık olarak iletilir.</div>
+          </div>
+        </div>
+
+        <!-- SIDE PANEL -->
+        <aside class="space-y-5">
+          <div class="glass rounded-3xl p-5">
+            <div class="flex items-center justify-between border-b border-zinc-800 pb-3 mb-3">
+              <div class="panel-title"><i class="fa-solid fa-trophy mr-2 text-amber-300"></i>Skor Tablosu</div>
+              <span id="player-count" class="text-[10px] text-zinc-500">0 oyuncu</span>
+            </div>
+            <div id="score-list" class="space-y-2"></div>
+          </div>
+
+          <div class="glass rounded-3xl p-5">
+            <div class="flex items-center justify-between border-b border-zinc-800 pb-3 mb-3">
+              <div class="panel-title"><i class="fa-solid fa-people-group mr-2"></i>Odada Olanlar</div>
+              <span class="text-[10px] text-zinc-600">Canlı</span>
+            </div>
+            <div id="room-players" class="space-y-2"></div>
+          </div>
+
+          <div class="glass rounded-3xl p-5 space-y-3">
+            <div class="panel-title"><i class="fa-solid fa-box-archive mr-2"></i>Oyun Arşivi</div>
+            <p class="text-[11px] text-zinc-500">Tamamlanan turların orijinal ve ters ses kayıtları burada birikir.</p>
+            <div class="flex items-center justify-between text-xs"><span class="text-zinc-500">Kaydedilen tur</span><strong id="archive-count" class="text-cyan-300">0</strong></div>
+            <button id="btn-toggle-archive" class="secondary-btn w-full rounded-xl py-2.5 text-xs font-bold"><i class="fa-solid fa-headphones mr-2"></i>Ses Arşivini Aç</button>
+            <button id="btn-end-game" class="hidden w-full rounded-xl py-2.5 text-xs font-bold bg-red-500/10 border border-red-400/20 text-red-300 hover:bg-red-500/20"><i class="fa-solid fa-flag-checkered mr-2"></i>Oyunu Bitir</button>
+          </div>
+        </aside>
+      </div>
+
+      <section id="archive-section" class="hidden mt-5 glass rounded-3xl p-5 sm:p-6">
+        <div class="flex items-center justify-between gap-3 border-b border-zinc-800 pb-3 mb-4">
+          <div><div class="panel-title">Tur kayıtları</div><div class="text-xs text-zinc-500 mt-1">Orijinal ses ve tersten dinletilen kayıt.</div></div>
+          <button id="btn-close-archive" class="secondary-btn rounded-lg px-3 py-2 text-xs">Kapat</button>
+        </div>
+        <div id="archive-list" class="space-y-3"></div>
+      </section>
+    </section>
+  </main>
+
+  <footer class="max-w-6xl mx-auto px-4 py-8 text-center text-[10px] text-zinc-700">Reverse Speech Master © 2026 · Arkadaşlarınla eğlen, sesi tersine çevir!</footer>
+
+  <div id="toast" class="toast-hide fixed z-50 bottom-5 left-1/2 -translate-x-1/2 max-w-[calc(100%-24px)] bg-zinc-900 border border-purple-400/30 shadow-2xl rounded-xl px-4 py-3 text-xs text-zinc-100"></div>
+
+  <script>
+  // ---------------------------------------------------------------------------
+  // 1) SUPABASE CONFIGURATION
+  // Replace these two values with your Supabase Project URL and Publishable key.
+  // Use the publishable / anon key only. NEVER use the service_role key here.
+  // ---------------------------------------------------------------------------
+  const SUPABASE_URL = "https://munjyiiujnukymqymcas.supabase.co";
+  const SUPABASE_ANON_KEY = "sb_publishable_I5n-DDjpcPPX5Cv-kUzayQ_5LcswbgG";
+  const AUDIO_BUCKET = "reverse-speech-audio";
+  const MAX_RECORDING_SECONDS = 25;
+
+  // A broad Turkish party-game word pool. Add more entries whenever you like.
+  const WORDS = [
+    ["Ünlüler","Tarkan"],["Ünlüler","Barış Manço"],["Ünlüler","Sezen Aksu"],["Ünlüler","Cem Yılmaz"],
+    ["Ünlüler","Hadise"],["Ünlüler","İbrahim Tatlıses"],["Ünlüler","Arda Güler"],["Ünlüler","Kıvanç Tatlıtuğ"],
+    ["Ünlüler","Kenan İmirzalıoğlu"],["Ünlüler","Sertab Erener"],["Ünlüler","Ajda Pekkan"],["Ünlüler","Şahan Gökbakar"],
+    ["Ünlüler","Müslüm Gürses"],["Ünlüler","Ahmet Kaya"],["Ünlüler","Murat Boz"],["Ünlüler","Edis"],
+    ["Ünlüler","Gülşen"],["Ünlüler","Haluk Levent"],["Ünlüler","Zeki Müren"],["Ünlüler","Şener Şen"],
+    ["Ünlüler","Cem Karaca"],["Ünlüler","Barış Arduç"],["Ünlüler","Demet Evgar"],["Ünlüler","Mert Ramazan Demir"],
+    ["Ünlüler","Engin Altan Düzyatan"],["Ünlüler","Seda Sayan"],["Ünlüler","Beyazıt Öztürk"],["Ünlüler","Oğuzhan Koç"],
+    ["Ünlüler","Aleyna Tilki"],["Ünlüler","Mabel Matiz"],["Ünlüler","Murat Yıldırım"],["Ünlüler","Nusret Gökçe"],
+    ["Eşyalar","Buzdolabı"],["Eşyalar","Televizyon"],["Eşyalar","Bilgisayar"],["Eşyalar","Kulaklık"],
+    ["Eşyalar","Mikrofon"],["Eşyalar","Tencere"],["Eşyalar","Çamaşır Makinesi"],["Eşyalar","Kahve Makinesi"],
+    ["Eşyalar","Ütü Masası"],["Eşyalar","Akıllı Telefon"],["Eşyalar","Moka Pot"],["Eşyalar","Termos"],
+    ["Eşyalar","Avize"],["Eşyalar","Perde"],["Eşyalar","Halı"],["Eşyalar","Yastık"],
+    ["Eşyalar","Battaniye"],["Eşyalar","Şemsiye"],["Eşyalar","Valiz"],["Eşyalar","Tarak"],
+    ["Eşyalar","Kumanda"],["Eşyalar","Diş Fırçası"],["Eşyalar","Elektrikli Süpürge"],["Eşyalar","Düdüklü Tencere"],
+    ["Eşyalar","Çekyat"],["Eşyalar","Klavye"],["Eşyalar","Mouse Pad"],["Eşyalar","Güneş Gözlüğü"],
+    ["Şehirler","İstanbul"],["Şehirler","Ankara"],["Şehirler","İzmir"],["Şehirler","Antalya"],
+    ["Şehirler","Trabzon"],["Şehirler","Eskişehir"],["Şehirler","Gaziantep"],["Şehirler","İzmit"],
+    ["Şehirler","Çanakkale"],["Şehirler","Kapadokya"],["Şehirler","Pamukkale"],["Şehirler","Süleymaniye"],
+    ["Şehirler","Anıtkabir"],["Şehirler","Bodrum"],["Şehirler","Mardin"],["Şehirler","Rize"],
+    ["Şehirler","Bursa"],["Şehirler","Adana"],["Şehirler","Konya"],["Şehirler","Van"],
+    ["Şehirler","Diyarbakır"],["Şehirler","Safranbolu"],["Şehirler","Kız Kulesi"],["Şehirler","Uludağ"],
+    ["Diziler & Filmler","Aşk-ı Memnu"],["Diziler & Filmler","Kurtlar Vadisi"],["Diziler & Filmler","Ezel"],["Diziler & Filmler","G.O.R.A."],
+    ["Diziler & Filmler","Vizontele"],["Diziler & Filmler","Hababam Sınıfı"],["Diziler & Filmler","Yahşi Batı"],["Diziler & Filmler","Leyla ile Mecnun"],
+    ["Diziler & Filmler","Behzat Ç."],["Diziler & Filmler","Avrupa Yakası"],["Diziler & Filmler","Yalan Dünya"],["Diziler & Filmler","Kardeş Payı"],
+    ["Diziler & Filmler","Muhteşem Yüzyıl"],["Diziler & Filmler","Çukur"],["Diziler & Filmler","Yargı"],["Diziler & Filmler","Kızılcık Şerbeti"],
+    ["Diziler & Filmler","İnci Taneleri"],["Diziler & Filmler","Pera Palas"],["Diziler & Filmler","Kulüp"],["Diziler & Filmler","Atiye"],
+    ["Yemekler","Lahmacun"],["Yemekler","Baklava"],["Yemekler","İskender"],["Yemekler","Mantı"],
+    ["Yemekler","Künefe"],["Yemekler","Adana Kebap"],["Yemekler","Cağ Kebabı"],["Yemekler","İçli Köfte"],
+    ["Yemekler","Menemen"],["Yemekler","Pide"],["Yemekler","Simit"],["Yemekler","Ayran"],
+    ["Yemekler","Türk Kahvesi"],["Yemekler","Kokoreç"],["Yemekler","Midye Dolma"],["Yemekler","Hamsi Tava"],
+    ["Yemekler","Mercimek Çorbası"],["Yemekler","Karnıyarık"],["Yemekler","Sütlaç"],["Yemekler","Keşkek"],
+    ["Hayvanlar","Penguen"],["Hayvanlar","Zürafa"],["Hayvanlar","Bukalemun"],["Hayvanlar","Ahtapot"],
+    ["Hayvanlar","Kanguru"],["Hayvanlar","Kirpi"],["Hayvanlar","Flamingo"],["Hayvanlar","Timsah"],
+    ["Hayvanlar","Denizanası"],["Hayvanlar","Kartal"],["Hayvanlar","Kutup Ayısı"],["Hayvanlar","Sincap"],
+    ["Günlük Hayat","Dişçi Randevusu"],["Günlük Hayat","Trafik Cezası"],["Günlük Hayat","Pazartesi Sendromu"],["Günlük Hayat","Uzaktan Kumanda"],
+    ["Günlük Hayat","Yanlışlıkla Aramak"],["Günlük Hayat","Şarj Aleti"],["Günlük Hayat","Komşunun Kedisi"],["Günlük Hayat","Son Otobüs"],
+    ["Günlük Hayat","Kayıp Çorap"],["Günlük Hayat","Bozuk Asansör"],["Günlük Hayat","Sınav Haftası"],["Günlük Hayat","Market Poşeti"],
+    ["Spor","Basketbol"],["Spor","Voleybol"],["Spor","Formula Bir"],["Spor","Masa Tenisi"],
+    ["Spor","Galatasaray"],["Spor","Fenerbahçe"],["Spor","Beşiktaş"],["Spor","Anadolu Efes"],
+    ["Spor","Penaltı Atışı"],["Spor","Ofsayt Tuzağı"],["Spor","Maraton"],["Spor","Bisiklet Turu"]
+  ];
+
+  const $ = (id) => document.getElementById(id);
+  let supabaseClient = null;
+  let authUser = null;
+  let room = null;
+  let roomId = null;
+  let roomCode = null;
+  let myPlayer = null;
+  let players = [];
+  let rounds = [];
+  let guesses = [];
+  let recordings = [];
+  let imitationRecordings = [];
+  let recordingMode = 'speaker';
+  let secrets = {};
+  let realtimeChannel = null;
+  let refreshTimer = null;
+  let refreshSequence = 0;
+  let currentReversedUrl = null;
+  let lastAutoPlayedRoundId = null;
+  let mediaRecorder = null;
+  let mediaStream = null;
+  let audioContext = null;
+  let analyser = null;
+  let audioChunks = [];
+  let isRecording = false;
+  let recordingTimeout = null;
+  let animationFrame = null;
+  let toastTimeout = null;
+
+  const screenHome = $('screen-home');
+  const screenRoom = $('screen-room');
+  const toastEl = $('toast');
+  const canvas = $('waveform');
+  const canvasCtx = canvas.getContext('2d');
+
+  function showToast(message, isError = false) {
+    toastEl.textContent = message;
+    toastEl.className = `fixed z-50 bottom-5 left-1/2 -translate-x-1/2 max-w-[calc(100%-24px)] rounded-xl px-4 py-3 text-xs shadow-2xl ${isError ? 'bg-red-950 border border-red-400/40 text-red-100' : 'bg-zinc-900 border border-purple-400/30 text-zinc-100'}`;
+    clearTimeout(toastTimeout);
+    toastTimeout = setTimeout(() => toastEl.classList.add('toast-hide'), 3200);
+  }
+
+  function escapeHTML(value) {
+    return String(value ?? '').replace(/[&<>"']/g, char => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    })[char]);
+  }
+
+  function setConnection(label, connected) {
+    $('connection-badge').classList.remove('hidden');
+    $('connection-label').textContent = label;
+    const dot = $('connection-badge').querySelector('.pulse-dot');
+    dot.style.background = connected ? '#22d3ee' : '#f59e0b';
+    dot.style.boxShadow = connected ? '0 0 12px #22d3ee' : '0 0 12px #f59e0b';
+  }
+
+  function showHome() {
+    screenHome.classList.remove('hidden-screen');
+    screenRoom.classList.add('hidden-screen');
+  }
+
+  function showRoom() {
+    screenHome.classList.add('hidden-screen');
+    screenRoom.classList.remove('hidden-screen');
+  }
+
+  function supabaseConfigured() {
+    return SUPABASE_URL.startsWith('https://') &&
+      SUPABASE_ANON_KEY.length > 20 &&
+      !SUPABASE_URL.includes('_BURAYA') &&
+      !SUPABASE_ANON_KEY.includes('_BURAYA');
+  }
+
+  async function ensureAuthenticated() {
+    if (!supabaseConfigured()) throw new Error('Önce index.html içindeki Supabase URL ve Publishable Key alanlarını doldur.');
+    if (!supabaseClient) {
+      if (!window.supabase?.createClient) throw new Error('Supabase istemcisi yüklenemedi. İnternet bağlantını kontrol et.');
+      supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+        auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
+      });
+    }
+    const { data: sessionData, error: sessionError } = await supabaseClient.auth.getSession();
+    if (sessionError) throw sessionError;
+    if (sessionData.session?.user) {
+      authUser = sessionData.session.user;
+    } else {
+      const { data, error } = await supabaseClient.auth.signInAnonymously();
+      if (error) throw error;
+      authUser = data.user;
+    }
+  }
+
+  function friendlyError(error) {
+    const message = error?.message || String(error || 'Bilinmeyen hata');
+    if (message.toLowerCase().includes('anonymous')) return 'Supabase panelinde Anonymous Sign-Ins özelliğini açmalısın.';
+    if (message.toLowerCase().includes('fetch')) return 'Sunucuya ulaşılamadı. Supabase URL ve internet bağlantısını kontrol et.';
+    return message;
+  }
+
+  async function withButton(button, action) {
+    if (!button || button.disabled) return;
+    const previous = button.innerHTML;
+    button.disabled = true;
+    button.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i>Bağlanıyor...';
+    try { await action(); }
+    catch (error) { console.error(error); showToast(friendlyError(error), true); }
+    finally { button.disabled = false; button.innerHTML = previous; }
+  }
+
+  async function createRoom() {
+    const name = $('create-name').value.trim();
+    if (!name) throw new Error('Önce oyuncu adını yaz.');
+    await ensureAuthenticated();
+    const { data, error } = await supabaseClient.rpc('create_room', { p_name: name });
+    if (error) throw error;
+    await enterRoom(data.room_id, data.room_code, data.player_id);
+    showToast('Odan hazır! Davet linkini arkadaşlarına gönderebilirsin.');
+  }
+
+  async function joinRoom() {
+    const name = $('join-name').value.trim();
+    const code = $('join-code').value.trim().toUpperCase();
+    if (!name) throw new Error('Önce oyuncu adını yaz.');
+    if (!/^[A-Z0-9]{6}$/.test(code)) throw new Error('Oda kodu 6 karakter olmalı.');
+    await ensureAuthenticated();
+    const { data, error } = await supabaseClient.rpc('join_room', { p_code: code, p_name: name });
+    if (error) throw error;
+    await enterRoom(data.room_id, data.room_code, data.player_id);
+    showToast('Odaya katıldın.');
+  }
+
+  async function enterRoom(id, code, playerId) {
+    roomId = id;
+    roomCode = code;
+    myPlayer = { id: playerId };
+    $('room-code-title').textContent = code;
+    history.replaceState({}, '', `${location.pathname}?room=${encodeURIComponent(code)}`);
+    showRoom();
+    await refreshRoomState();
+    subscribeToRoom();
+  }
+
+  function scheduleRefresh() {
+    clearTimeout(refreshTimer);
+    refreshTimer = setTimeout(() => refreshRoomState().catch(err => console.error(err)), 180);
+  }
+
+  async function refreshRoomState() {
+    if (!roomId || !supabaseClient) return;
+    const sequence = ++refreshSequence;
+    const [roomResult, playerResult, roundResult, guessResult, recordingResult, imitationResult] = await Promise.all([
+      supabaseClient.from('rooms').select('*').eq('id', roomId).single(),
+      supabaseClient.from('players').select('*').eq('room_id', roomId).order('joined_at').order('id'),
+      supabaseClient.from('rounds').select('*').eq('room_id', roomId).order('turn_number'),
+      supabaseClient.from('guesses').select('*').eq('room_id', roomId).order('created_at'),
+      supabaseClient.from('recordings').select('*').eq('room_id', roomId).order('created_at'),
+      supabaseClient.from('imitation_recordings').select('*').eq('room_id', roomId).order('created_at')
+    ]);
+    for (const result of [roomResult, playerResult, roundResult, guessResult, recordingResult, imitationResult]) {
+      if (result.error) throw result.error;
+    }
+    if (sequence !== refreshSequence) return;
+
+    room = roomResult.data;
+    players = playerResult.data || [];
+    rounds = roundResult.data || [];
+    guesses = guessResult.data || [];
+    recordings = recordingResult.data || [];
+    imitationRecordings = imitationResult.data || [];
+    myPlayer = players.find(player => player.user_id === authUser?.id) || myPlayer;
+
+    const secretResult = await supabaseClient.from('round_secrets').select('round_id,target_word').eq('room_id', roomId);
+    if (secretResult.error) throw secretResult.error;
+    if (sequence !== refreshSequence) return;
+    secrets = Object.fromEntries((secretResult.data || []).map(item => [item.round_id, item.target_word]));
+
+    renderRoom();
+    await handleCurrentAudio();
+    setConnection('Oda eşitlendi', true);
+  }
+
+  function subscribeToRoom() {
+    if (realtimeChannel) supabaseClient.removeChannel(realtimeChannel);
+    realtimeChannel = supabaseClient.channel(`room-${roomId}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'rooms', filter: `id=eq.${roomId}` }, scheduleRefresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'players', filter: `room_id=eq.${roomId}` }, scheduleRefresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'rounds', filter: `room_id=eq.${roomId}` }, scheduleRefresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'guesses', filter: `room_id=eq.${roomId}` }, scheduleRefresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'recordings', filter: `room_id=eq.${roomId}` }, scheduleRefresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'imitation_recordings', filter: `room_id=eq.${roomId}` }, scheduleRefresh)
+      .subscribe(status => {
+        if (status === 'SUBSCRIBED') setConnection('Canlı bağlantı', true);
+        else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') setConnection('Bağlantı yenileniyor', false);
+      });
+  }
+
+  function getActiveRound() {
+    return rounds.find(round => ['recording', 'guessing'].includes(round.status)) || null;
+  }
+
+  function getLatestRound() {
+    return rounds.length ? rounds[rounds.length - 1] : null;
+  }
+
+  function getPlayer(playerId) { return players.find(player => player.id === playerId); }
+
+  function getNextSpeaker() {
+    if (!players.length) return null;
+    const latest = getLatestRound();
+    if (!latest) return players.find(player => player.user_id === room?.host_user_id) || players[0];
+    const currentIndex = players.findIndex(player => player.id === latest.speaker_id);
+    if (currentIndex < 0) return players[0];
+    return players[(currentIndex + 1) % players.length];
+  }
+
+  function renderRoom() {
+    if (!room) return;
+    $('room-code-title').textContent = room.code;
+    $('player-count').textContent = `${players.length} oyuncu`;
+    $('archive-count').textContent = String(recordings.length);
+    $('btn-end-game').classList.toggle('hidden', room.host_user_id !== authUser?.id || room.status === 'finished');
+    $('btn-toggle-archive').textContent = room.status === 'finished' ? 'Ses Arşivini Görüntüle' : 'Ses Arşivini Aç';
+    $('btn-end-game').disabled = room.status === 'finished';
+
+    const sortedScores = [...players].sort((a,b) => b.score - a.score || new Date(a.joined_at) - new Date(b.joined_at));
+    $('score-list').innerHTML = sortedScores.length ? sortedScores.map((player,index) => `
+      <div class="flex items-center justify-between gap-2 rounded-xl bg-black/25 border border-zinc-800/80 px-3 py-2.5">
+        <div class="flex items-center gap-2 min-w-0">
+          <span class="w-6 h-6 rounded-lg ${index===0 && player.score>0?'bg-amber-400/15 text-amber-300':'bg-purple-500/10 text-purple-300'} flex items-center justify-center text-[10px] font-black">${index+1}</span>
+          <span class="text-xs font-semibold text-zinc-200 truncate">${escapeHTML(player.name)}${player.user_id===authUser?.id?' <span class="text-cyan-300">(Sen)</span>':''}</span>
+        </div>
+        <strong class="text-xs font-mono text-cyan-300">${player.score} P</strong>
+      </div>`).join('') : '<div class="text-xs text-zinc-600 text-center py-5">Henüz oyuncu yok.</div>';
+
+    const active = getActiveRound();
+    $('room-players').innerHTML = players.map((player,index) => `
+      <div class="flex items-center gap-2 text-xs ${active?.speaker_id===player.id?'text-cyan-200':'text-zinc-400'}">
+        <span class="w-7 h-7 rounded-full ${active?.speaker_id===player.id?'bg-cyan-400/15 text-cyan-300':'bg-zinc-800 text-zinc-500'} flex items-center justify-center text-[10px] font-bold">${escapeHTML((player.name||'?').slice(0,1).toLocaleUpperCase('tr-TR'))}</span>
+        <span class="flex-1 truncate">${escapeHTML(player.name)}${player.user_id===authUser?.id?' <span class="text-cyan-400">(Sen)</span>':''}</span>
+        ${player.user_id===room.host_user_id?'<i class="fa-solid fa-crown text-amber-400 text-[10px]" title="Oda sahibi"></i>':''}
+        ${active?.speaker_id===player.id?'<span class="text-[9px] uppercase tracking-wider">Okuyor</span>':''}
+      </div>`).join('');
+
+    renderRound(active);
+    renderGuesses(active);
+    renderImitations(active);
+    renderArchive();
+  }
+
+  function renderRound(active) {
+    const latest = getLatestRound();
+    const isFinished = room.status === 'finished';
+    const isLobby = room.status === 'lobby';
+    const speaker = active ? getPlayer(active.speaker_id) : null;
+    $('target-word-wrap').classList.add('hidden');
+    $('round-action-area').innerHTML = '';
+    $('btn-record').disabled = true;
+    $('btn-play-current').disabled = true;
+    $('guess-input').disabled = true;
+    $('btn-send-guess').disabled = true;
+
+    if (isFinished) {
+      $('round-category').textContent = 'Oyun tamamlandı';
+      $('round-number').textContent = `${rounds.length} tur oynandı`;
+      $('round-speaker').textContent = 'Parti sona erdi! 🎉';
+      $('round-message').textContent = 'Tüm oyuncular ses arşivinden kayıtları tekrar dinleyebilir.';
+      $('recording-badge').textContent = 'Oyun bitti';
+      $('recording-status').textContent = 'Oda sahibi oyunu bitirdi.';
+      return;
+    }
+
+    if (active) {
+      const isSpeaker = active.speaker_id === myPlayer?.id;
+      const target = secrets[active.id];
+      $('round-category').textContent = active.category;
+      $('round-number').textContent = `Tur ${active.turn_number}`;
+      $('round-speaker').textContent = speaker?.name || 'Oyuncu';
+
+      if (active.status === 'recording') {
+        recordingMode = 'speaker';
+        $('recording-badge').textContent = isSpeaker ? 'Kayıt sırası sende' : 'Okuyucu hazırlanıyor';
+        $('recording-status').textContent = isSpeaker ? 'Mikrofona bas, kelimeyi oku ve tekrar basarak durdur.' : 'Okuyucunun ses kaydını göndermesi bekleniyor.';
+        if (isSpeaker && target) {
+          $('round-message').textContent = 'Kelimeyi sadece sen görüyorsun. Arkadaşlarına göstermeden oku.';
+          $('target-word').textContent = target;
+          $('target-word-wrap').classList.remove('hidden');
+          $('btn-record').disabled = false;
+          $('round-action-area').innerHTML = `<button data-action="skip-round" class="secondary-btn rounded-xl px-4 py-2.5 text-xs font-bold"><i class="fa-solid fa-forward mr-2"></i>Bu kelimeyi pas geç</button>`;
+        } else {
+          $('round-message').textContent = 'Kelime okunuyor. Ses tersine çevrilince tahmin alanı açılacak.';
+        }
+      } else {
+        $('recording-badge').textContent = active.status === 'guessing' ? 'Tahmin zamanı' : 'Tur tamamlandı';
+        $('recording-status').textContent = active.status === 'guessing' ? 'Tersten duyduğun kelimeyi tahmin et.' : 'Bu tur tamamlandı.';
+        if (isSpeaker && target) {
+          $('target-word').textContent = target;
+          $('target-word-wrap').classList.remove('hidden');
+        }
+        if (active.status === 'guessing') {
+          $('round-message').textContent = isSpeaker ? 'Arkadaşların tahmin ediyor. Doğru cevabı söyleme!' : 'Ters sesi dinle, duyduğun şekilde taklit kaydı al ve ardından tahminini gönder.';
+          if (!isSpeaker) {
+            recordingMode = 'imitation';
+            $('btn-record').disabled = false;
+            $('recording-status').textContent = 'Taklit kaydı için mikrofona bas. Kaydın ters çevrilip herkese dinletilecek.';
+            $('guess-input').disabled = false;
+            $('btn-send-guess').disabled = false;
+          }
+          $('btn-play-current').disabled = !recordings.some(recording => recording.round_id === active.id);
+        } else {
+          const winner = getPlayer(active.guessed_by);
+          $('round-message').textContent = active.status === 'completed'
+            ? `Doğru cevap: ${target || '—'} · ${winner?.name || 'Bir oyuncu'} doğru cevabı buldu!`
+            : `Tur pas geçildi. Doğru cevap: ${target || '—'}`;
+        }
+      }
+      return;
+    }
+
+    const next = getNextSpeaker();
+    $('round-category').textContent = isLobby ? 'Oda hazır' : 'Sıradaki tur';
+    $('round-number').textContent = `${rounds.length} tur tamamlandı`;
+    $('round-speaker').textContent = next ? next.name : 'Oyuncu bekleniyor';
+    $('recording-badge').textContent = isLobby ? 'Başlangıç bekleniyor' : 'Yeni tur bekleniyor';
+    $('recording-status').textContent = 'Sıra sana geldiğinde kelime ve kayıt butonu açılacak.';
+
+    if (isLobby) {
+      if (players.length < 2) {
+        $('round-message').textContent = 'Davet linkini arkadaşlarına gönder. Oyun için en az 2 oyuncu gerekiyor.';
+      } else if (next?.user_id === authUser?.id) {
+        $('round-message').textContent = 'Oda hazır! İlk tur seninle başlayacak. Kelimeyi yalnızca sen göreceksin.';
+        $('round-action-area').innerHTML = '<button data-action="start-round" class="primary-btn rounded-xl px-6 py-3 text-sm"><i class="fa-solid fa-play mr-2"></i>Oyunu Başlat</button>';
+      } else {
+        $('round-message').textContent = `${next?.name || 'Oda sahibi'} oyunu başlatacak. Ona haber ver!`;
+      }
+    } else if (next?.user_id === authUser?.id) {
+      $('round-message').textContent = 'Sıra sende! Hazırsan yeni kelimeni seç ve arkadaşlarına okut.';
+      $('round-action-area').innerHTML = '<button data-action="start-round" class="primary-btn rounded-xl px-6 py-3 text-sm"><i class="fa-solid fa-dice mr-2"></i>Yeni Kelime Çek</button>';
+    } else {
+      $('round-message').textContent = `${next?.name || 'Sıradaki oyuncu'} yeni turu başlatacak. Birazdan kelime geliyor!`;
+    }
+    if (!isLobby && latest) {
+      const previousWord = secrets[latest.id];
+      const previousWinner = getPlayer(latest.guessed_by);
+      const resultText = latest.status === 'completed'
+        ? `Son tur: ${previousWord || latest.category}. ${previousWinner?.name || 'Bir oyuncu'} doğru cevabı buldu.`
+        : latest.status === 'skipped' ? `Son tur pas geçildi. Cevap: ${previousWord || latest.category}.` : '';
+      if (resultText) $('round-message').textContent = `${resultText} ${$('round-message').textContent}`;
+    }
+  }
+
+  function renderGuesses(active) {
+    const displayRound = active || getLatestRound();
+    const visible = displayRound ? guesses.filter(guess => guess.round_id === displayRound.id) : [];
+    $('guess-count').textContent = `${visible.length} tahmin`;
+    if (!visible.length) {
+      $('guess-list').innerHTML = '<div class="text-xs text-zinc-600 text-center py-7">Ters ses yayınlandığında tahminler burada görünecek.</div>';
+      $('guess-hint').textContent = active?.status === 'guessing' ? 'Doğru tahminlerde sıralamaya göre 10, 8, 6, 4 ve 2 puan kazanılır.' : 'Tahminler bütün oyunculara anlık olarak iletilir.';
+      return;
+    }
+    $('guess-list').innerHTML = visible.map(guess => {
+      const player = getPlayer(guess.player_id);
+      return `<div class="flex items-center justify-between gap-3 rounded-xl px-3 py-2.5 ${guess.is_correct?'bg-emerald-500/10 border border-emerald-400/25':'bg-black/25 border border-zinc-800'}">
+        <div class="min-w-0"><div class="text-[10px] text-zinc-500 mb-0.5">${escapeHTML(player?.name || 'Oyuncu')}</div><div class="text-xs ${guess.is_correct?'text-emerald-300 font-bold':'text-zinc-200'} break-words">${escapeHTML(guess.guess_text)}</div></div>
+        ${guess.is_correct?`<span class="text-[10px] font-bold text-emerald-300 shrink-0"><i class="fa-solid fa-check mr-1"></i>+${guess.points_awarded ?? 0} P</span>`:'<span class="text-[9px] text-zinc-600 shrink-0">Tahmin</span>'}
+      </div>`;
+    }).join('');
+    $('guess-list').scrollTop = $('guess-list').scrollHeight;
+    $('guess-hint').textContent = active?.status === 'guessing' ? 'Doğru tahminlerde sıralamaya göre 10, 8, 6, 4 ve 2 puan kazanılır.' : 'Tur tamamlandı.';
+  }
+
+  function renderImitations(active) {
+    const round = active || getLatestRound();
+    const list = round ? imitationRecordings.filter(item => item.round_id === round.id) : [];
+    $('imitation-count').textContent = `${list.length} kayıt`;
+    if (!list.length) {
+      $('imitation-list').innerHTML = '<div class="text-xs text-zinc-600 text-center py-4">Bu turda henüz taklit kaydı yok.</div>';
+      return;
+    }
+    $('imitation-list').innerHTML = list.map(item => {
+      const player = getPlayer(item.player_id);
+      return `<div class="flex items-center justify-between gap-3 rounded-xl bg-black/25 border border-zinc-800 px-3 py-2.5"><div class="min-w-0"><div class="text-xs font-semibold text-zinc-200">${escapeHTML(player?.name || 'Oyuncu')}</div><div class="text-[10px] text-zinc-500">Ters çevrilmiş taklit kaydı</div></div><button data-play-imitation="${item.id}" class="secondary-btn rounded-lg px-3 py-2 text-[10px] font-bold"><i class="fa-solid fa-play mr-1 text-cyan-300"></i>Dinle</button></div>`;
+    }).join('');
+  }
+
+  async function playImitation(id) {
+    const item = imitationRecordings.find(row => row.id === id);
+    if (!item) throw new Error('Taklit kaydı bulunamadı.');
+    const url = await signedAudioUrl(item.reversed_path);
+    const audio = new Audio(url);
+    await audio.play();
+  }
+
+  async function startRound() {
+    if (!roomId) return;
+    const [category, word] = WORDS[Math.floor(Math.random() * WORDS.length)];
+    const { error } = await supabaseClient.rpc('start_round', {
+      p_room_id: roomId, p_category: category, p_word: word
+    });
+    if (error) throw error;
+    await refreshRoomState();
+  }
+
+  async function skipRound() {
+    const active = getActiveRound();
+    if (!active) return;
+    const { error } = await supabaseClient.rpc('skip_round', { p_round_id: active.id });
+    if (error) throw error;
+    await refreshRoomState();
+    showToast('Tur pas geçildi. Sıra sonraki oyuncuda.');
+  }
+
+  async function submitGuess(event) {
+    event.preventDefault();
+    const active = getActiveRound();
+    const text = $('guess-input').value.trim();
+    if (!active || !text) return;
+    $('guess-input').value = '';
+    $('btn-send-guess').disabled = true;
+    const { data, error } = await supabaseClient.rpc('submit_guess', {
+      p_round_id: active.id, p_text: text
+    });
+    $('btn-send-guess').disabled = false;
+    if (error) throw error;
+    await refreshRoomState();
+    if (data?.is_correct) showToast(`Bildin! ${data.correct_word} · +${data.points_awarded ?? 0} puan 🎉`);
+    else showToast('Tahminin gönderildi. Bir daha dene!');
+  }
+
+  async function finishRoom() {
+    if (!confirm('Oyunu bitirmek ve arşivi son hâline getirmek istiyor musun?')) return;
+    const { error } = await supabaseClient.rpc('finish_room', { p_room_id: roomId });
+    if (error) throw error;
+    await refreshRoomState();
+    $('archive-section').classList.remove('hidden');
+    showToast('Oyun bitti. Ses arşivi hazır!');
+  }
+
+  async function copyInviteLink() {
+    const link = `${location.origin}${location.pathname}?room=${encodeURIComponent(roomCode)}`;
+    try {
+      await navigator.clipboard.writeText(link);
+      showToast('Davet linki kopyalandı. Arkadaşlarına gönderebilirsin.');
+    } catch (_) {
+      prompt('Davet linkini kopyala:', link);
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // AUDIO RECORDING + REVERSAL
+  // ---------------------------------------------------------------------------
+  async function toggleRecording() {
+    if (isRecording) {
+      mediaRecorder?.stop();
+      return;
+    }
+    const active = getActiveRound();
+    const canSpeak = active && ((active.status === 'recording' && active.speaker_id === myPlayer?.id) || (active.status === 'guessing' && active.speaker_id !== myPlayer?.id));
+    if (!canSpeak) return;
+    if (!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) {
+      showToast('Tarayıcı mikrofon kaydını desteklemiyor. Güncel Chrome, Edge veya Safari kullan.', true);
+      return;
+    }
+    try {
+      audioContext = audioContext || new (window.AudioContext || window.webkitAudioContext)();
+      if (audioContext.state === 'suspended') await audioContext.resume();
+      mediaStream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
+      const source = audioContext.createMediaStreamSource(mediaStream);
+      analyser = audioContext.createAnalyser();
+      analyser.fftSize = 2048;
+      source.connect(analyser);
+      const mimeCandidates = ['audio/webm;codecs=opus','audio/webm','audio/ogg;codecs=opus','audio/ogg','audio/mp4'];
+      const mimeType = mimeCandidates.find(type => MediaRecorder.isTypeSupported(type));
+      mediaRecorder = mimeType ? new MediaRecorder(mediaStream, { mimeType }) : new MediaRecorder(mediaStream);
+      audioChunks = [];
+      mediaRecorder.ondataavailable = event => { if (event.data?.size) audioChunks.push(event.data); };
+      mediaRecorder.onstop = handleRecordingStopped;
+      mediaRecorder.onerror = event => showToast(`Kayıt hatası: ${event.error?.message || 'Bilinmeyen hata'}`, true);
+      mediaRecorder.start(250);
+      isRecording = true;
+      $('btn-record').classList.add('recording-ring');
+      $('record-icon').className = 'fa-solid fa-stop';
+      $('recording-badge').textContent = 'Kayıt alınıyor';
+      $('recording-status').textContent = 'Kayıt alınıyor... Bitirmek için tekrar bas.';
+      $('waveform-placeholder').classList.add('hidden');
+      drawWaveform();
+      recordingTimeout = setTimeout(() => { if (isRecording) mediaRecorder.stop(); }, MAX_RECORDING_SECONDS * 1000);
+    } catch (error) {
+      stopMediaTracks();
+      console.error(error);
+      showToast('Mikrofon açılamadı. Siteye mikrofon izni ver ve HTTPS üzerinden aç.', true);
+    }
+  }
+
+  async function handleRecordingStopped() {
+    isRecording = false;
+    clearTimeout(recordingTimeout);
+    cancelAnimationFrame(animationFrame);
+    $('btn-record').classList.remove('recording-ring');
+    $('record-icon').className = 'fa-solid fa-spinner fa-spin';
+    $('btn-record').disabled = true;
+    $('recording-status').textContent = 'Ses tersine çevriliyor ve odaya yükleniyor...';
+    stopMediaTracks();
+    try {
+      const active = getActiveRound();
+      if (!active) throw new Error('Aktif tur değişmiş.');
+      const isImitation = active.status === 'guessing' && active.speaker_id !== myPlayer?.id;
+      if (!isImitation && !(active.status === 'recording' && active.speaker_id === myPlayer?.id)) throw new Error('Bu turda kayıt yapma sıran değil.');
+      const actualMime = mediaRecorder?.mimeType || audioChunks[0]?.type || 'audio/webm';
+      const originalBlob = new Blob(audioChunks, { type: actualMime });
+      if (!originalBlob.size) throw new Error('Ses kaydı boş geldi. Tekrar dene.');
+      const decoded = await audioContext.decodeAudioData(await originalBlob.arrayBuffer());
+      const reversedBlob = audioBufferToWav(reverseAudioBuffer(decoded));
+      const extension = actualMime.includes('ogg') ? 'ogg' : actualMime.includes('mp4') ? 'm4a' : 'webm';
+      if (isImitation) {
+        const base = `${roomId}/${active.id}/imitations/${myPlayer.id}`;
+        const originalPath = `${base}/original.${extension}`;
+        const reversedPath = `${base}/reversed.wav`;
+        const up1 = await supabaseClient.storage.from(AUDIO_BUCKET).upload(originalPath, originalBlob, { contentType: actualMime.split(';')[0] || 'audio/webm', upsert: true });
+        if (up1.error) throw up1.error;
+        const up2 = await supabaseClient.storage.from(AUDIO_BUCKET).upload(reversedPath, reversedBlob, { contentType: 'audio/wav', upsert: true });
+        if (up2.error) throw up2.error;
+        const { error: saveError } = await supabaseClient.rpc('save_imitation_recording', { p_round_id: active.id, p_original_path: originalPath, p_reversed_path: reversedPath });
+        if (saveError) throw saveError;
+        await refreshRoomState();
+        $('recording-status').textContent = 'Taklit kaydın odaya gönderildi. Herkes dinleyebilir!';
+        showToast('Taklit kaydın ters çevrilip paylaşıldı!');
+        return;
+      }
+      const originalPath = `${roomId}/${active.id}/original.${extension}`;
+      const reversedPath = `${roomId}/${active.id}/reversed.wav`;
+      const originalMime = actualMime.split(';')[0] || 'audio/webm';
+
+      const originalUpload = await supabaseClient.storage.from(AUDIO_BUCKET).upload(originalPath, originalBlob, {
+        contentType: originalMime, upsert: false
+      });
+      if (originalUpload.error) throw originalUpload.error;
+      const reversedUpload = await supabaseClient.storage.from(AUDIO_BUCKET).upload(reversedPath, reversedBlob, {
+        contentType: 'audio/wav', upsert: false
+      });
+      if (reversedUpload.error) throw reversedUpload.error;
+
+      const { error } = await supabaseClient.rpc('set_round_guessing', {
+        p_round_id: active.id, p_original_path: originalPath, p_reversed_path: reversedPath
+      });
+      if (error) throw error;
+      await refreshRoomState();
+      $('recording-status').textContent = 'Ses tersine çevrildi! Arkadaşların tahmin edebilir.';
+      showToast('Ters ses odaya gönderildi!');
+      await playRecording(active.id, 'reversed');
+    } catch (error) {
+      console.error(error);
+      $('recording-status').textContent = 'Kayıt gönderilemedi. Tekrar deneyebilirsin.';
+      showToast(`Ses işlenemedi: ${friendlyError(error)}`, true);
+      await refreshRoomState().catch(console.error);
+    } finally {
+      $('record-icon').className = 'fa-solid fa-microphone';
+      const current = getActiveRound();
+      $('btn-record').disabled = !current || !((current.status === 'recording' && current.speaker_id === myPlayer?.id) || (current.status === 'guessing' && current.speaker_id !== myPlayer?.id));
+      audioChunks = [];
+    }
+  }
+
+  function stopMediaTracks() {
+    if (mediaStream) mediaStream.getTracks().forEach(track => track.stop());
+    mediaStream = null;
+  }
+
+  function drawWaveform() {
+    if (!isRecording || !analyser) return;
+    const width = canvas.clientWidth || 600;
+    const height = canvas.clientHeight || 96;
+    const pixelRatio = window.devicePixelRatio || 1;
+    if (canvas.width !== Math.floor(width * pixelRatio) || canvas.height !== Math.floor(height * pixelRatio)) {
+      canvas.width = Math.floor(width * pixelRatio);
+      canvas.height = Math.floor(height * pixelRatio);
+    }
+    canvasCtx.setTransform(pixelRatio,0,0,pixelRatio,0,0);
+    const data = new Uint8Array(analyser.fftSize);
+    analyser.getByteTimeDomainData(data);
+    canvasCtx.clearRect(0,0,width,height);
+    canvasCtx.lineWidth = 2;
+    canvasCtx.strokeStyle = '#22d3ee';
+    canvasCtx.beginPath();
+    const slice = width / data.length;
+    data.forEach((value,index) => {
+      const y = (value / 128) * height / 2;
+      if (index === 0) canvasCtx.moveTo(0,y); else canvasCtx.lineTo(index * slice,y);
+    });
+    canvasCtx.stroke();
+    animationFrame = requestAnimationFrame(drawWaveform);
+  }
+
+  function reverseAudioBuffer(input) {
+    const output = audioContext.createBuffer(input.numberOfChannels, input.length, input.sampleRate);
+    for (let channel = 0; channel < input.numberOfChannels; channel++) {
+      const from = input.getChannelData(channel);
+      const to = output.getChannelData(channel);
+      for (let i = 0, j = from.length - 1; i < from.length; i++, j--) to[i] = from[j];
+    }
+    return output;
+  }
+
+  function audioBufferToWav(buffer) {
+    const channels = buffer.numberOfChannels;
+    const sampleCount = buffer.length * channels;
+    const byteLength = 44 + sampleCount * 2;
+    const arrayBuffer = new ArrayBuffer(byteLength);
+    const view = new DataView(arrayBuffer);
+    let offset = 0;
+    const writeString = text => { for (let i=0;i<text.length;i++) view.setUint8(offset++, text.charCodeAt(i)); };
+    const write16 = value => { view.setUint16(offset, value, true); offset += 2; };
+    const write32 = value => { view.setUint32(offset, value, true); offset += 4; };
+    writeString('RIFF'); write32(byteLength - 8); writeString('WAVE');
+    writeString('fmt '); write32(16); write16(1); write16(channels);
+    write32(buffer.sampleRate); write32(buffer.sampleRate * channels * 2); write16(channels * 2); write16(16);
+    writeString('data'); write32(sampleCount * 2);
+    const channelData = Array.from({length:channels},(_,index)=>buffer.getChannelData(index));
+    for (let i=0;i<buffer.length;i++) {
+      for (let c=0;c<channels;c++) {
+        const sample = Math.max(-1,Math.min(1,channelData[c][i]));
+        view.setInt16(offset, sample < 0 ? sample * 32768 : sample * 32767, true);
+        offset += 2;
+      }
+    }
+    return new Blob([arrayBuffer], { type: 'audio/wav' });
+  }
+
+  async function handleCurrentAudio() {
+    const active = getActiveRound();
+    if (!active || active.status !== 'guessing') { currentReversedUrl = null; return; }
+    const recording = recordings.find(item => item.round_id === active.id);
+    if (!recording) return;
+    const url = await signedAudioUrl(recording.reversed_path);
+    currentReversedUrl = url;
+    $('btn-play-current').disabled = false;
+    if (lastAutoPlayedRoundId !== active.id) {
+      lastAutoPlayedRoundId = active.id;
+      const audio = new Audio(url);
+      audio.play().catch(() => showToast('Ters ses hazır. Dinlemek için “Tersten Dinle” butonuna bas.'));
+    }
+  }
+
+  async function signedAudioUrl(path) {
+    const { data, error } = await supabaseClient.storage.from(AUDIO_BUCKET).createSignedUrl(path, 60 * 60);
+    if (error) throw error;
+    return data.signedUrl;
+  }
+
+  async function playRecording(roundId, type) {
+    const recording = recordings.find(item => item.round_id === roundId);
+    if (!recording) throw new Error('Bu tur için ses kaydı bulunamadı.');
+    const path = type === 'original' ? recording.original_path : recording.reversed_path;
+    const url = await signedAudioUrl(path);
+    const audio = new Audio(url);
+    await audio.play();
+  }
+
+  async function playCurrentReversed() {
+    const active = getActiveRound();
+    if (!active) return;
+    if (currentReversedUrl) {
+      const audio = new Audio(currentReversedUrl);
+      await audio.play();
+    } else {
+      await playRecording(active.id, 'reversed');
+    }
+  }
+
+  function renderArchive() {
+    $('archive-count').textContent = String(recordings.length);
+    if (!recordings.length) {
+      $('archive-list').innerHTML = '<div class="text-center text-xs text-zinc-600 py-8">Henüz kaydedilmiş ses yok. İlk turdan sonra kayıtlar burada görünecek.</div>';
+      return;
+    }
+    $('archive-list').innerHTML = [...recordings].reverse().map((recording) => {
+      const round = rounds.find(item => item.id === recording.round_id);
+      const speaker = getPlayer(recording.speaker_id);
+      const word = secrets[recording.round_id];
+      return `<div class="bg-black/25 border border-zinc-800 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div class="min-w-0"><div class="font-bold text-sm text-zinc-100">Tur ${round?.turn_number || '—'} · ${escapeHTML(word || round?.category || 'Ses kaydı')}</div>
+        <div class="text-[11px] text-zinc-500 mt-1">Okuyan: ${escapeHTML(speaker?.name || 'Oyuncu')} · ${escapeHTML(round?.category || '')}</div></div>
+        <div class="flex gap-2 shrink-0">
+          <button data-play-round="${recording.round_id}" data-play-type="reversed" class="secondary-btn rounded-xl px-3 py-2 text-[11px] font-bold"><i class="fa-solid fa-backward mr-1.5 text-cyan-300"></i>Tersten</button>
+          <button data-play-round="${recording.round_id}" data-play-type="original" class="secondary-btn rounded-xl px-3 py-2 text-[11px] font-bold"><i class="fa-solid fa-play mr-1.5"></i>Orijinal</button>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  // ---------------------------------------------------------------------------
+  // UI EVENTS
+  // ---------------------------------------------------------------------------
+  $('btn-create-room').addEventListener('click', () => withButton($('btn-create-room'), createRoom));
+  $('btn-join-room').addEventListener('click', () => withButton($('btn-join-room'), joinRoom));
+  $('join-code').addEventListener('input', event => event.target.value = event.target.value.toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,6));
+  $('btn-copy-link').addEventListener('click', () => copyInviteLink().catch(error => showToast(friendlyError(error), true)));
+  $('btn-leave-room').addEventListener('click', () => {
+    if (isRecording) mediaRecorder?.stop();
+    if (realtimeChannel) supabaseClient.removeChannel(realtimeChannel);
+    realtimeChannel = null; room = null; roomId = null; roomCode = null; myPlayer = null;
+    history.replaceState({}, '', location.pathname);
+    showHome();
+  });
+  $('btn-record').addEventListener('click', () => toggleRecording().catch(error => showToast(friendlyError(error), true)));
+  $('btn-play-current').addEventListener('click', () => playCurrentReversed().catch(error => showToast(friendlyError(error), true)));
+  $('guess-form').addEventListener('submit', event => submitGuess(event).catch(error => showToast(friendlyError(error), true)));
+  $('btn-end-game').addEventListener('click', () => withButton($('btn-end-game'), finishRoom));
+  $('btn-toggle-archive').addEventListener('click', () => $('archive-section').classList.toggle('hidden'));
+  $('btn-close-archive').addEventListener('click', () => $('archive-section').classList.add('hidden'));
+  $('round-action-area').addEventListener('click', event => {
+    const button = event.target.closest('[data-action]');
+    if (!button) return;
+    const action = button.dataset.action;
+    if (action === 'start-round') withButton(button, startRound);
+    if (action === 'skip-round') withButton(button, skipRound);
+  });
+  $('imitation-list').addEventListener('click', event => {
+    const button = event.target.closest('[data-play-imitation]');
+    if (!button) return;
+    playImitation(button.dataset.playImitation).catch(error => showToast(friendlyError(error), true));
+  });
+  $('archive-list').addEventListener('click', event => {
+    const button = event.target.closest('[data-play-round]');
+    if (!button) return;
+    playRecording(button.dataset.playRound, button.dataset.playType).catch(error => showToast(friendlyError(error), true));
+  });
+  $('join-name').addEventListener('keydown', event => { if (event.key === 'Enter') $('btn-join-room').click(); });
+  $('create-name').addEventListener('keydown', event => { if (event.key === 'Enter') $('btn-create-room').click(); });
+
+  // If a friend opens an invite URL, prefill the room code automatically.
+  const inviteCode = new URLSearchParams(location.search).get('room');
+  if (inviteCode) {
+    $('join-code').value = inviteCode.toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,6);
+    $('join-name').focus();
+  }
+  if (!supabaseConfigured()) $('config-warning').classList.remove('hidden');
+  else setConnection('Bağlantı hazır', true);
+  </script>
+</body>
+</html>
